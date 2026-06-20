@@ -11,6 +11,7 @@ import {
   PhoneCall,
   Tag,
   UserCog,
+  Video,
   X,
   XCircle,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { useToast } from '@/components/ui/Toast'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ActivityTimeline } from '@/components/ActivityTimeline'
 import { CallLogModal } from '@/components/leads/CallLogModal'
+import { MeetShareDialog } from '@/components/leads/MeetShareDialog'
 import { MeetingScheduler } from '@/components/meetings/MeetingScheduler'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEmployeeMap, useEmployees } from '@/hooks/useEmployees'
@@ -67,6 +69,7 @@ export function LeadDrawer({
 
   const [showCall, setShowCall] = useState(false)
   const [showMeeting, setShowMeeting] = useState(false)
+  const [showMeet, setShowMeet] = useState(false)
   const [othersNote, setOthersNote] = useState('')
   const [showOthersNote, setShowOthersNote] = useState(false)
 
@@ -360,6 +363,10 @@ export function LeadDrawer({
               <MonitorPlay className="h-4 w-4" />
               Start demo
             </Button>
+            <Button size="sm" variant="secondary" onClick={() => setShowMeet(true)}>
+              <Video className="h-4 w-4" />
+              Google Meet
+            </Button>
           </section>
 
           {/* Stage automation */}
@@ -455,6 +462,13 @@ export function LeadDrawer({
             open={showMeeting}
             onClose={() => setShowMeeting(false)}
             leadId={lead.id}
+          />
+          <MeetShareDialog
+            open={showMeet}
+            onClose={() => setShowMeet(false)}
+            leadId={lead.id}
+            leadName={lead.customer_name}
+            leadPhone={lead.phone}
           />
         </div>
       )}

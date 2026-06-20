@@ -121,6 +121,42 @@ export function useMarkLeadViewed() {
   })
 }
 
+export interface CreateLeadInput {
+  values: Partial<Lead>
+  performed_by?: string | null
+}
+
+/** Inserts a manually-entered lead. Marks it viewed so it lands in Fresh, not New. */
+export function useCreateLead() {
+  const invalidate = useInvalidateLeads()
+  return useMutation({
+    mutationFn: async (input: CreateLeadInput) => {
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from(LEADS_TABLE)
+        .insert({
+          source: 'Manual',
+          status: 'open',
+          customer_status: 'Fresh',
+          first_viewed_at: now,
+          first_viewed_by: input.performed_by ?? null,
+          ...input.values,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
+      const newId = (data as { id: number }).id
+      await logActivity({
+        lead_id: newId,
+        action: 'Lead created manually',
+        performed_by: input.performed_by ?? null,
+      })
+      return newId
+    },
+    onSuccess: (id) => invalidate(id),
+  })
+}
+
 export interface UpdateLeadInput {
   lead_id: number
   patch: Partial<Lead>

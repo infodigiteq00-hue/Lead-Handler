@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Inbox } from 'lucide-react'
+import { Inbox, UserPlus } from 'lucide-react'
 import type { Lead } from '@/types'
 import { PageHeader } from '@/components/PageHeader'
+import { Button } from '@/components/ui/Button'
 import { LoadingState } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { LeadTable, type LeadColumn } from '@/components/leads/LeadTable'
 import { LeadDrawer } from '@/components/leads/LeadDrawer'
+import { NewLeadModal } from '@/components/leads/NewLeadModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLeads, useMarkLeadViewed } from '@/hooks/useLeads'
 
@@ -16,6 +18,7 @@ export default function NewCustomers() {
   const { data: leads = [], isLoading } = useLeads({ scope: 'new' })
   const markViewed = useMarkLeadViewed()
   const [activeId, setActiveId] = useState<number | null>(null)
+  const [showNew, setShowNew] = useState(false)
 
   const onRowClick = (lead: Lead) => {
     setActiveId(lead.id)
@@ -30,6 +33,12 @@ export default function NewCustomers() {
       <PageHeader
         title="New Customers"
         subtitle="Leads that haven't been opened yet — opening one moves it to Ongoing"
+        actions={
+          <Button size="sm" onClick={() => setShowNew(true)}>
+            <UserPlus className="h-4 w-4" />
+            Add lead
+          </Button>
+        }
       />
 
       {isLoading ? (
@@ -45,6 +54,11 @@ export default function NewCustomers() {
       )}
 
       <LeadDrawer leadId={activeId} open={activeId !== null} onClose={() => setActiveId(null)} />
+      <NewLeadModal
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        onCreated={(id) => setActiveId(id)}
+      />
     </div>
   )
 }
