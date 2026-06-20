@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuoteGen CRM</title>
     <script>
+      // Restore SPA path from GitHub Pages 404 redirect
+      try {
+        var r = sessionStorage.redirect;
+        if (r) { delete sessionStorage.redirect; window.history.replaceState(null, null, r || '/'); }
+      } catch (e) {}
+      // Theme
       try {
         var t = localStorage.getItem('theme');
         if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
