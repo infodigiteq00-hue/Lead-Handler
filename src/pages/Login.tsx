@@ -16,7 +16,7 @@ export default function Login() {
   const { signIn, session } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +29,10 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error: err } = await signIn(email.trim(), password)
+    const email = username.trim().includes('@')
+      ? username.trim()
+      : `${username.trim()}@digiteq.in`
+    const { error: err } = await signIn(email, password)
     setLoading(false)
     if (err) {
       setError(err)
@@ -98,15 +101,15 @@ export default function Login() {
             onSubmit={onSubmit}
             className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
           >
-            <FormField label="Email" htmlFor="email">
+            <FormField label="Username" htmlFor="username">
               <Input
-                id="email"
-                type="email"
-                autoComplete="email"
+                id="username"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@digiteq.in"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="shivam"
               />
             </FormField>
 
