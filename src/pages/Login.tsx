@@ -29,9 +29,8 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const email = username.trim().includes('@')
-      ? username.trim()
-      : `${username.trim()}@digiteq.in`
+    const lower = username.trim().toLowerCase()
+    const email = lower.includes('@') ? lower : `${lower}@digiteq.in`
     const { error: err } = await signIn(email, password)
     setLoading(false)
     if (err) {
@@ -109,7 +108,7 @@ export default function Login() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="shivam"
+                placeholder="Digiteq"
               />
             </FormField>
 
