@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Copy, ExternalLink, MessageCircle, Video } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -9,11 +9,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { logActivity } from '@/hooks/useActivityLogs'
 import { queryKeys } from '@/hooks/queryKeys'
 
-/** Generate a unique, URL-safe Google Meet lookup alias (lowercase alphanumeric). */
-function makeMeetAlias() {
-  const rand = Math.random().toString(36).slice(2, 10)
-  const stamp = Date.now().toString(36).slice(-4)
-  return `qgmeet-${rand}${stamp}`
+const NEW_MEET_URL = 'https://meet.google.com/new'
+
+/** A real Meet room link looks like https://meet.google.com/abc-defg-hij */
+function isValidMeetLink(link: string) {
+  return /meet\.google\.com\/[a-z]{3,}-[a-z]{3,}-[a-z]{3,}/i.test(link.trim())
 }
 
 /** Strip everything but digits so the number is wa.me-friendly (e.g. 919876543210). */
@@ -38,29 +38,31 @@ export function MeetShareDialog({
   const { employee } = useAuth()
   const queryClient = useQueryClient()
 
-  const [alias, setAlias] = useState('')
+  const [meetLink, setMeetLink] = useState('')
   const [copied, setCopied] = useState(false)
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
 
-  const meetUrl = useMemo(
-    () => (alias ? `https://meet.google.com/lookup/${alias}` : ''),
-    [alias],
-  )
+  const link = meetLink.trim()
+  const valid = isValidMeetLink(link)
 
-  // Generate a fresh link + message every time the dialog is opened.
+  // Reset everything each time the dialog is opened.
   useEffect(() => {
     if (!open) return
-    const a = makeMeetAlias()
-    setAlias(a)
+    setMeetLink('')
     setCopied(false)
     setPhone(leadPhone ?? '')
-    const url = `https://meet.google.com/lookup/${a}`
+    setMessage('')
+  }, [open, leadPhone])
+
+  // Build a default WhatsApp message once a valid link is pasted.
+  useEffect(() => {
+    if (!valid) return
     const name = leadName?.trim() || 'there'
     setMessage(
-      `Hi ${name}, here's the Google Meet link for our call: ${url}\n\nSee you there!`,
+      `Hi ${name}, here's the Google Meet link for our call: ${link}\n\nSee you there!`,
     )
-  }, [open, leadName, leadPhone])
+  }, [valid, link, leadName])
 
   const refreshTimeline = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.activity(leadId) })
@@ -76,16 +78,20 @@ export function MeetShareDialog({
     }).then(refreshTimeline)
   }
 
+  const startMeet = () => {
+    window.open(NEW_MEET_URL, '_blank', 'noopener,noreferrer')
+  }
+
   const openMeeting = () => {
-    if (!meetUrl) return
-    window.open(meetUrl, '_blank', 'noopener,noreferrer')
-    logMeet('Google Meet started', meetUrl)
+    if (!valid) return
+    window.open(link, '_blank', 'noopener,noreferrer')
+    logMeet('Google Meet opened', link)
   }
 
   const copyLink = async () => {
-    if (!meetUrl) return
+    if (!valid) return
     try {
-      await navigator.clipboard.writeText(meetUrl)
+      await navigator.clipboard.writeText(link)
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
       toast('Meet link copied', 'success')
@@ -95,14 +101,17 @@ export function MeetShareDialog({
   }
 
   const shareWhatsApp = () => {
-    if (!meetUrl) return
+    if (!valid) {
+      toast('Paste a valid Google Meet link first', 'error')
+      return
+    }
     const num = toWhatsAppNumber(phone)
     // With a number → opens that chat. Without → WhatsApp lets the employee
     // pick any contact (or their own number) before sending.
     const base = num ? `https://wa.me/${num}` : 'https://wa.me/'
     const url = `${base}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank', 'noopener,noreferrer')
-    logMeet('Meet link shared on WhatsApp', num ? `${meetUrl} → ${num}` : meetUrl)
+    logMeet('Meet link shared on WhatsApp', num ? `${link} → ${num}` : link)
   }
 
   return (
@@ -118,53 +127,63 @@ export function MeetShareDialog({
       }
     >
       <div className="space-y-5">
-        <div>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            A fresh meeting link is ready. Open it to start the call, or share it
-            with the lead on WhatsApp.
-          </p>
-        </div>
-
-        {/* The generated link */}
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-          <Video className="h-4 w-4 shrink-0 text-slate-400" />
-          <a
-            href={meetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="min-w-0 flex-1 truncate text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
-          >
-            {meetUrl}
-          </a>
-          <button
-            type="button"
-            onClick={copyLink}
-            aria-label="Copy link"
-            className="shrink-0 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-emerald-500" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={openMeeting}>
-            <ExternalLink className="h-4 w-4" />
-            Open meeting
-          </Button>
-          <Button size="sm" variant="outline" onClick={copyLink}>
-            {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-            {copied ? 'Copied' : 'Copy link'}
+        {/* Step 1 — start a meeting on the employee's Google account */}
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+          <div className="flex items-start gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
+              1
+            </span>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Start a new meeting on your Google account, then copy the link Google
+              gives you (top-left, or “Copy joining info”).
+            </p>
+          </div>
+          <Button size="sm" onClick={startMeet} className="w-full">
+            <Video className="h-4 w-4" />
+            Start Google Meet
           </Button>
         </div>
 
-        {/* Share on WhatsApp */}
+        {/* Step 2 — paste the real link back */}
+        <div className="space-y-3">
+          <FormField
+            label="2. Paste the Meet link"
+            htmlFor="meet-link"
+            error={link && !valid ? 'That doesn’t look like a Google Meet link' : undefined}
+            hint={!link ? 'e.g. https://meet.google.com/abc-defg-hij' : undefined}
+          >
+            <Input
+              id="meet-link"
+              type="url"
+              value={meetLink}
+              onChange={(e) => setMeetLink(e.target.value)}
+              placeholder="https://meet.google.com/abc-defg-hij"
+              autoComplete="off"
+            />
+          </FormField>
+
+          {valid && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={openMeeting}>
+                <ExternalLink className="h-4 w-4" />
+                Open meeting
+              </Button>
+              <Button size="sm" variant="outline" onClick={copyLink}>
+                {copied ? (
+                  <Check className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {copied ? 'Copied' : 'Copy link'}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Step 3 — share on WhatsApp (enabled once a link is pasted) */}
         <div className="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Share on WhatsApp
+            3. Share on WhatsApp
           </div>
           <FormField
             label="Phone number"
@@ -184,9 +203,14 @@ export function MeetShareDialog({
               id="meet-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              placeholder="Paste the Meet link above to build the message…"
             />
           </FormField>
-          <Button onClick={shareWhatsApp} className="w-full bg-[#25D366] hover:bg-[#1da851]">
+          <Button
+            onClick={shareWhatsApp}
+            disabled={!valid}
+            className="w-full bg-[#25D366] hover:bg-[#1da851]"
+          >
             <MessageCircle className="h-4 w-4" />
             Share on WhatsApp
           </Button>
