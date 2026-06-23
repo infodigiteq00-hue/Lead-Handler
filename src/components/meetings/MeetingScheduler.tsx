@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
+import { TimePicker } from '@/components/ui/TimePicker'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEmployees } from '@/hooks/useEmployees'
@@ -117,13 +118,7 @@ export function MeetingScheduler({
             />
           </FormField>
           <FormField label="Time" htmlFor="meeting-time">
-            <Input
-              id="meeting-time"
-              type="time"
-              required
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
+            <TimePicker id="meeting-time" value={time} onChange={setTime} />
           </FormField>
         </div>
         <FormField label="Assign to" htmlFor="meeting-assignee">

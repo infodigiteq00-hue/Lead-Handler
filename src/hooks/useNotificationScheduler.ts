@@ -7,6 +7,7 @@ import {
   showBrowserNotification,
 } from '@/lib/notify'
 import type { NotificationType } from '@/types'
+import { fmtTime } from '@/lib/utils'
 import { useDemoTrials } from './useDemoTrials'
 import { useMeetings } from './useMeetings'
 
@@ -78,10 +79,10 @@ export function useNotificationScheduler() {
         const when = parseISO(`${m.meeting_date}T${m.meeting_time}`)
         const mins = differenceInMinutes(when, now)
         if (mins <= 15 && mins >= 1) {
-          fire(`m15-${m.id}`, 'Meeting in 15 minutes', `Scheduled at ${m.meeting_time}`, 'meeting', m.lead_id)
+          fire(`m15-${m.id}`, 'Meeting in 15 minutes', `Scheduled at ${fmtTime(m.meeting_time)}`, 'meeting', m.lead_id)
         }
         if (mins <= 5 && mins >= 0) {
-          fire(`m5-${m.id}`, 'Meeting in 5 minutes', `Scheduled at ${m.meeting_time}`, 'meeting', m.lead_id)
+          fire(`m5-${m.id}`, 'Meeting in 5 minutes', `Scheduled at ${fmtTime(m.meeting_time)}`, 'meeting', m.lead_id)
         }
       }
 

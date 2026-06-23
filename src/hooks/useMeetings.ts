@@ -3,6 +3,7 @@ import { LEADS_TABLE, supabase } from '@/lib/supabase'
 import { createNotification } from '@/lib/notify'
 import { queryKeys } from './queryKeys'
 import { logActivity } from './useActivityLogs'
+import { fmtDate, fmtTime } from '@/lib/utils'
 import type { Meeting } from '@/types'
 
 export function useMeetings() {
@@ -52,13 +53,13 @@ export function useScheduleMeeting() {
         lead_id: input.lead_id,
         action: 'Meeting scheduled',
         performed_by: input.performed_by,
-        notes: `${input.meeting_date} at ${input.meeting_time}`,
+        notes: `${fmtDate(input.meeting_date)} at ${fmtTime(input.meeting_time)}`,
       })
 
       await createNotification({
         employee_id: input.assigned_to,
         title: 'Meeting scheduled',
-        message: `Meeting on ${input.meeting_date} at ${input.meeting_time}`,
+        message: `Meeting on ${fmtDate(input.meeting_date)} at ${fmtTime(input.meeting_time)}`,
         type: 'meeting',
         scheduled_for: `${input.meeting_date}T${input.meeting_time}`,
         lead_id: input.lead_id,
@@ -110,13 +111,13 @@ export function useRescheduleMeeting() {
         lead_id: input.lead_id,
         action: 'Meeting rescheduled',
         performed_by: input.performed_by,
-        notes: `${input.meeting_date} at ${input.meeting_time}`,
+        notes: `${fmtDate(input.meeting_date)} at ${fmtTime(input.meeting_time)}`,
       })
 
       await createNotification({
         employee_id: input.assigned_to,
         title: 'Meeting rescheduled',
-        message: `Meeting moved to ${input.meeting_date} at ${input.meeting_time}`,
+        message: `Meeting moved to ${fmtDate(input.meeting_date)} at ${fmtTime(input.meeting_time)}`,
         type: 'meeting',
         scheduled_for: `${input.meeting_date}T${input.meeting_time}`,
         lead_id: input.lead_id,
