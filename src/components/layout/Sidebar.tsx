@@ -5,6 +5,7 @@ import {
   MonitorPlay,
   UserPlus,
   Users,
+  UserX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
@@ -23,6 +24,7 @@ const navItems: NavItem[] = [
   { to: '/ongoing', label: 'Ongoing', icon: Users },
   { to: '/meetings', label: 'Meetings', icon: CalendarClock },
   { to: '/demos', label: 'Demo Started', icon: MonitorPlay },
+  { to: '/lost', label: 'Lost', icon: UserX },
 ]
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {

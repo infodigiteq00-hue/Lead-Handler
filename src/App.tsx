@@ -9,6 +9,7 @@ import NewCustomers from '@/pages/NewCustomers'
 import Ongoing from '@/pages/Ongoing'
 import Meetings from '@/pages/Meetings'
 import DemoStarted from '@/pages/DemoStarted'
+import Lost from '@/pages/Lost'
 import SearchResults from '@/pages/SearchResults'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="ongoing" element={<Ongoing />} />
         <Route path="meetings" element={<Meetings />} />
         <Route path="demos" element={<DemoStarted />} />
+        <Route path="lost" element={<Lost />} />
         <Route path="search" element={<SearchResults />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

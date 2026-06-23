@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, MessageCircle, Video } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ClipboardPaste, Check, Copy, ExternalLink, MessageCircle, Video } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { FormField, Input, Textarea } from '@/components/ui/Field'
@@ -63,6 +63,41 @@ export function MeetShareDialog({
       `Hi ${name}, here's the Google Meet link for our call: ${link}\n\nSee you there!`,
     )
   }, [valid, link, leadName])
+
+  /** Read the clipboard and, if it holds a Meet link, drop it into the field. */
+  const fetchFromClipboard = useCallback(
+    async (announce: boolean) => {
+      try {
+        const text = (await navigator.clipboard.readText())?.trim()
+        if (text && isValidMeetLink(text)) {
+          setMeetLink((prev) => (prev.trim() === text ? prev : text))
+          if (announce) toast('Meet link fetched from clipboard', 'success')
+          return true
+        }
+        if (announce) toast('No Meet link found on the clipboard yet', 'error')
+      } catch {
+        if (announce) toast('Allow clipboard access, or paste the link manually', 'error')
+      }
+      return false
+    },
+    [toast],
+  )
+
+  // Auto-grab the link when the user switches back from the Meet tab. Browsers
+  // forbid reading another tab's URL directly, so the clipboard is the bridge:
+  // the employee clicks Meet's "Copy" once, and returning here pulls it in.
+  useEffect(() => {
+    if (!open) return
+    const onReturn = () => {
+      if (document.visibilityState === 'visible') void fetchFromClipboard(false)
+    }
+    window.addEventListener('focus', onReturn)
+    document.addEventListener('visibilitychange', onReturn)
+    return () => {
+      window.removeEventListener('focus', onReturn)
+      document.removeEventListener('visibilitychange', onReturn)
+    }
+  }, [open, fetchFromClipboard])
 
   const refreshTimeline = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.activity(leadId) })
@@ -134,8 +169,8 @@ export function MeetShareDialog({
               1
             </span>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Start a new meeting on your Google account, then copy the link Google
-              gives you (top-left, or “Copy joining info”).
+              Start a new meeting, then tap Meet’s <b>Copy</b> button. When you switch
+              back to this tab the link is pulled in automatically.
             </p>
           </div>
           <Button size="sm" onClick={startMeet} className="w-full">
@@ -144,22 +179,35 @@ export function MeetShareDialog({
           </Button>
         </div>
 
-        {/* Step 2 — paste the real link back */}
+        {/* Step 2 — link auto-fetched from the clipboard (or pasted manually) */}
         <div className="space-y-3">
           <FormField
-            label="2. Paste the Meet link"
+            label="2. Meet link"
             htmlFor="meet-link"
             error={link && !valid ? 'That doesn’t look like a Google Meet link' : undefined}
-            hint={!link ? 'e.g. https://meet.google.com/abc-defg-hij' : undefined}
+            hint={!link ? 'Auto-filled when you return from Meet — or paste it here' : undefined}
           >
-            <Input
-              id="meet-link"
-              type="url"
-              value={meetLink}
-              onChange={(e) => setMeetLink(e.target.value)}
-              placeholder="https://meet.google.com/abc-defg-hij"
-              autoComplete="off"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="meet-link"
+                type="url"
+                value={meetLink}
+                onChange={(e) => setMeetLink(e.target.value)}
+                placeholder="https://meet.google.com/abc-defg-hij"
+                autoComplete="off"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fetchFromClipboard(true)}
+                title="Paste from clipboard"
+                aria-label="Paste from clipboard"
+                className="shrink-0"
+              >
+                <ClipboardPaste className="h-4 w-4" />
+              </Button>
+            </div>
           </FormField>
 
           {valid && (

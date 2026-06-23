@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react'
-import { CalendarClock, Clock } from 'lucide-react'
+import { CalendarClock, CalendarCog, Clock } from 'lucide-react'
 import type { Lead, Meeting } from '@/types'
 import { MEETING_STATUSES } from '@/types'
 import { PageHeader } from '@/components/PageHeader'
+import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { LoadingState } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Field'
 import { StatusBadge } from '@/components/StatusBadge'
 import { LeadDrawer } from '@/components/leads/LeadDrawer'
+import { MeetingScheduler } from '@/components/meetings/MeetingScheduler'
 import { useMeetings, useUpdateMeeting } from '@/hooks/useMeetings'
 import { useLeads } from '@/hooks/useLeads'
 import { useEmployeeMap, employeeName } from '@/hooks/useEmployees'
@@ -20,10 +22,12 @@ function MeetingRowItem({
   meeting,
   leadMap,
   onOpenLead,
+  onReschedule,
 }: {
   meeting: Meeting
   leadMap: Record<number, Lead>
   onOpenLead: (id: number) => void
+  onReschedule: (meeting: Meeting) => void
 }) {
   const { employee } = useAuth()
   const { toast } = useToast()
@@ -32,6 +36,12 @@ function MeetingRowItem({
   const lead = leadMap[meeting.lead_id]
 
   const onStatus = async (status: string) => {
+    // Picking "Rescheduled" should immediately prompt for a new date/time
+    // rather than silently flagging it.
+    if (status === 'Rescheduled') {
+      onReschedule(meeting)
+      return
+    }
     try {
       await updateMeeting.mutateAsync({
         id: meeting.id,
@@ -72,6 +82,15 @@ function MeetingRowItem({
       </button>
       <div className="flex shrink-0 items-center gap-2">
         <StatusBadge value={meeting.status} />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onReschedule(meeting)}
+          title="Reschedule"
+        >
+          <CalendarCog className="h-4 w-4" />
+          Reschedule
+        </Button>
         <Select
           className="h-8 w-auto py-0 text-xs"
           value={meeting.status}
@@ -93,6 +112,7 @@ export default function Meetings() {
   const { data: meetings = [], isLoading } = useMeetings()
   const { data: leads = [] } = useLeads({ scope: 'all' })
   const [activeId, setActiveId] = useState<number | null>(null)
+  const [rescheduleTarget, setRescheduleTarget] = useState<Meeting | null>(null)
 
   const leadMap = useMemo(() => {
     const map: Record<number, Lead> = {}
@@ -138,6 +158,7 @@ export default function Meetings() {
                     meeting={m}
                     leadMap={leadMap}
                     onOpenLead={setActiveId}
+                    onReschedule={setRescheduleTarget}
                   />
                 ))}
               </div>
@@ -158,6 +179,7 @@ export default function Meetings() {
                     meeting={m}
                     leadMap={leadMap}
                     onOpenLead={setActiveId}
+                    onReschedule={setRescheduleTarget}
                   />
                 ))}
               </div>
@@ -169,6 +191,14 @@ export default function Meetings() {
       )}
 
       <LeadDrawer leadId={activeId} open={activeId !== null} onClose={() => setActiveId(null)} />
+      {rescheduleTarget && (
+        <MeetingScheduler
+          open={!!rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          leadId={rescheduleTarget.lead_id}
+          meeting={rescheduleTarget}
+        />
+      )}
     </div>
   )
 }

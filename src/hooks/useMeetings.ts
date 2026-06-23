@@ -74,6 +74,64 @@ export function useScheduleMeeting() {
   })
 }
 
+export interface RescheduleMeetingInput {
+  id: string
+  lead_id: number
+  meeting_date: string
+  meeting_time: string
+  meeting_notes?: string | null
+  assigned_to: string | null
+  performed_by: string | null
+}
+
+/** Updates an existing meeting's date/time and resets it to Scheduled. */
+export function useRescheduleMeeting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: RescheduleMeetingInput) => {
+      const { error } = await supabase
+        .from('meetings')
+        .update({
+          meeting_date: input.meeting_date,
+          meeting_time: input.meeting_time,
+          meeting_notes: input.meeting_notes ?? null,
+          assigned_to: input.assigned_to,
+          status: 'Scheduled',
+        })
+        .eq('id', input.id)
+      if (error) throw error
+
+      await supabase
+        .from(LEADS_TABLE)
+        .update({ customer_status: 'Meeting Scheduled' })
+        .eq('id', input.lead_id)
+
+      await logActivity({
+        lead_id: input.lead_id,
+        action: 'Meeting rescheduled',
+        performed_by: input.performed_by,
+        notes: `${input.meeting_date} at ${input.meeting_time}`,
+      })
+
+      await createNotification({
+        employee_id: input.assigned_to,
+        title: 'Meeting rescheduled',
+        message: `Meeting moved to ${input.meeting_date} at ${input.meeting_time}`,
+        type: 'meeting',
+        scheduled_for: `${input.meeting_date}T${input.meeting_time}`,
+        lead_id: input.lead_id,
+      })
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: queryKeys.meetings })
+      qc.invalidateQueries({ queryKey: queryKeys.leads })
+      qc.invalidateQueries({ queryKey: queryKeys.metrics })
+      qc.invalidateQueries({ queryKey: queryKeys.notifications })
+      qc.invalidateQueries({ queryKey: queryKeys.activity(v.lead_id) })
+    },
+  })
+}
+
 export interface UpdateMeetingInput {
   id: string
   lead_id: number
